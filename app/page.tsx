@@ -186,8 +186,8 @@ export default function LandingPage() {
           <span className={styles.sectionLabel}>Pricing</span>
           <h2>Simple, transparent plans</h2>
           <p className={styles.sectionLead}>
-            Start free with 500 examples per month. Scale as your ML team grows. All
-            paid plans billed monthly in USD.
+            Start free with 500 examples per month. Switch between monthly and yearly
+            billing — save 17% with an annual plan. All prices in USD.
           </p>
           <PricingCards variant="landing" />
         </div>

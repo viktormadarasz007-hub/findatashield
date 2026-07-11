@@ -10,18 +10,17 @@ export default function ContactPage() {
           ← Back to home
         </Link>
         <h1>Contact</h1>
-        <p>
-          Have questions about FinDataShield, enterprise plans, or EU AI Act
-          compliance reporting? We&apos;d love to hear from you.
-        </p>
-        <p>
-          Email:{" "}
-          <a href="mailto:viktorm@findatashield.com">viktorm@findatashield.com</a>
-        </p>
-        <p>
-          For custom volume plans and dedicated support, include your team size and
-          expected monthly example volume in your message.
-        </p>
+
+        <div className={styles.contactCard}>
+          <strong>FinDataShield</strong>
+          <p>
+            Email:{" "}
+            <a href="mailto:viktorm@findatashield.com">viktorm@findatashield.com</a>
+          </p>
+          <p className={styles.contactNote}>
+            We aim to respond to all enquiries within 24 hours on business days.
+          </p>
+        </div>
       </article>
     </main>
   );
