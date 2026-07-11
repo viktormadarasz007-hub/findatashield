@@ -4,30 +4,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  type PaidSelfServeTierId,
-  type TierId,
-  TIERS,
-} from "@/lib/subscription";
+import { PricingCards } from "@/components/PricingCards";
+import type { PaidSelfServeTierId, TierId } from "@/lib/subscription";
 
 import styles from "./pricing.module.css";
-
-const DISPLAY_ORDER: TierId[] = ["free", "growth", "enterprise", "custom"];
-
-const CONTACT_SALES_MAIL =
-  "mailto:viktorm@findatashield.com?subject=FinDataShield%20Custom%20Plan";
-
-function formatUsdAmount(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
-function formatCount(n: number): string {
-  return new Intl.NumberFormat("en-US").format(n);
-}
 
 export function PricingView() {
   const router = useRouter();
@@ -56,7 +36,7 @@ export function PricingView() {
         }
 
         if (data.tier) {
-          router.replace("/", {
+          router.replace("/dashboard", {
             scroll: false,
           });
           return;
@@ -131,13 +111,13 @@ export function PricingView() {
       <header className={styles.topHeader}>
         <div className={styles.topHeaderInner}>
           <div className={styles.brand}>
-            <Link href="/">FinDataShield</Link>
+            <Link href="/dashboard">FinDataShield</Link>
             <span className={styles.tagline}>
               Synthetic Financial Data & EU AI Act Compliance
             </span>
           </div>
           <nav className={styles.nav}>
-            <Link href="/">Dashboard</Link>
+            <Link href="/dashboard">Dashboard</Link>
             <Link href="/pricing" aria-current="page">
               Pricing
             </Link>
@@ -170,74 +150,11 @@ export function PricingView() {
         {banner && <p className={styles.banner}>{banner}</p>}
         {error && <p className={styles.error}>{error}</p>}
 
-        <div className={styles.grid}>
-          {DISPLAY_ORDER.map((id) => {
-            const tier = TIERS[id];
-            const isCustom = id === "custom";
-            const isFree = id === "free";
-            const isPopular = tier.recommended === true;
-
-            return (
-              <article
-                key={id}
-                className={
-                  isPopular ? `${styles.card} ${styles.cardPopular}` : styles.card
-                }
-              >
-                {isPopular && (
-                  <span className={styles.popularBadge}>Most Popular</span>
-                )}
-
-                <h2>{tier.name}</h2>
-                <p className={styles.description}>{tier.description}</p>
-
-                {isCustom ? (
-                  <>
-                    <p className={styles.price}>Pricing on request</p>
-                    <p className={styles.period}>Custom example volume tailored to your needs</p>
-                  </>
-                ) : isFree ? (
-                  <>
-                    <p className={styles.price}>{formatUsdAmount(0)} USD</p>
-                    <p className={styles.period}>forever</p>
-                  </>
-                ) : (
-                  <>
-                    <p className={styles.price}>
-                      {formatUsdAmount(tier.priceMonthlyUsd!)} USD/month
-                    </p>
-                    <p className={styles.period}>billed monthly</p>
-                  </>
-                )}
-
-                <p className={styles.limit}>
-                  {tier.monthlyExampleLimit === null
-                    ? "Custom example volume"
-                    : `${formatCount(tier.monthlyExampleLimit)} examples / month`}
-                </p>
-
-                {isCustom ? (
-                  <a className={styles.contactSales} href={CONTACT_SALES_MAIL}>
-                    Contact Sales
-                  </a>
-                ) : isFree ? (
-                  <Link className={styles.chooseFree} href="/">
-                    Go to dashboard
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    className={isPopular ? styles.subscribePopular : styles.subscribe}
-                    disabled={checkoutTier !== null}
-                    onClick={() => void handleSubscribe(id)}
-                  >
-                    {checkoutTier === id ? "Redirecting…" : "Subscribe"}
-                  </button>
-                )}
-              </article>
-            );
-          })}
-        </div>
+        <PricingCards
+          variant="app"
+          checkoutTier={checkoutTier}
+          onSubscribe={(tier) => void handleSubscribe(tier)}
+        />
       </div>
     </main>
   );

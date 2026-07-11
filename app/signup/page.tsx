@@ -47,7 +47,7 @@ export default function SignupPage() {
           throw new Error(payload.error ?? "Could not initialize your account.");
         }
 
-        router.push("/");
+        router.push("/dashboard");
         router.refresh();
         return;
       }

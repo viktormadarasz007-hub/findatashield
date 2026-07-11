@@ -11,7 +11,7 @@ import styles from "../auth/auth.module.css";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") ?? "/";
+  const nextPath = searchParams.get("next") ?? "/dashboard";
   const callbackError = searchParams.get("error");
 
   const [email, setEmail] = useState("");
