@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  downloadComplianceReportPdf,
+  type ComplianceReport,
+} from "@/lib/compliance-pdf";
+import { csvFilename, downloadCsvFile } from "@/lib/dataset-export";
+import {
   getTierLimit,
   MONTHLY_LIMIT_ERROR,
   TIERS,
@@ -26,21 +31,7 @@ type GenerateResponse = {
   count: number;
   generatedAt: string;
   data: Array<Record<string, unknown>>;
-  compliance_report: {
-    report_id: string;
-    generated_at: string;
-    dataset_type: string;
-    total_examples: number;
-    quality_score: string;
-    synthetic_confirmed: boolean;
-    pii_confirmed_absent: boolean;
-    intended_use: string;
-    risk_classification: string;
-    regulation_compliance: string;
-    data_standards: string;
-    audit_trail: string;
-    recommendations: string[];
-  };
+  compliance_report: ComplianceReport;
   usage: UsageSnapshot;
 };
 
@@ -50,32 +41,6 @@ const DATA_TYPES: DataType[] = [
   "Compliance Documents",
   "Customer Service Logs",
 ];
-
-function toCsv(rows: Array<Record<string, unknown>>): string {
-  if (rows.length === 0) return "";
-
-  const headers = Array.from(
-    new Set(rows.flatMap((row) => Object.keys(row))),
-  );
-
-  const escapeCsv = (value: unknown) => {
-    const raw =
-      value === null || value === undefined
-        ? ""
-        : typeof value === "object"
-          ? JSON.stringify(value)
-          : String(value);
-    const escaped = raw.replaceAll('"', '""');
-    return `"${escaped}"`;
-  };
-
-  const lines = [
-    headers.join(","),
-    ...rows.map((row) => headers.map((header) => escapeCsv(row[header])).join(",")),
-  ];
-
-  return lines.join("\n");
-}
 
 function formatExampleCount(n: number): string {
   return new Intl.NumberFormat("en-US").format(n);
@@ -215,23 +180,15 @@ export default function Home() {
   function handleDownloadCsv() {
     if (!result?.data?.length) return;
 
-    const csv = toCsv(result.data);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const safeType = result.type.toLowerCase().replaceAll(/\s+/g, "-");
-
-    link.href = url;
-    link.download = `${safeType}-${result.count}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsvFile(
+      csvFilename(result.type, result.count),
+      result.data,
+    );
   }
 
   function handleDownloadCompliancePdf() {
     if (!result?.compliance_report) return;
-    window.print();
+    downloadComplianceReportPdf(result.compliance_report);
   }
 
   return (
@@ -246,6 +203,7 @@ export default function Home() {
             <Link href="/dashboard" aria-current="page">
               Dashboard
             </Link>
+            <Link href="/datasets">My Datasets</Link>
             <Link href="/pricing">Pricing</Link>
             <button
               type="button"

@@ -3,6 +3,7 @@ import Stripe from "stripe";
 
 import { getAuthenticatedUser } from "@/lib/auth";
 import {
+  type BillingPeriod,
   type PaidSelfServeTierId,
   PAID_SELF_SERVE_TIER_IDS,
 } from "@/lib/subscription";
@@ -15,12 +16,19 @@ function getStripe(): Stripe {
   return new Stripe(key);
 }
 
-function getPriceId(tier: PaidSelfServeTierId): string | undefined {
-  const env =
-    tier === "growth"
-      ? process.env.STRIPE_PRICE_ID_GROWTH
-      : process.env.STRIPE_PRICE_ID_ENTERPRISE;
-  return env?.trim() || undefined;
+function getPriceId(
+  tier: PaidSelfServeTierId,
+  billing: BillingPeriod,
+): string | undefined {
+  if (tier === "growth") {
+    return billing === "yearly"
+      ? process.env.STRIPE_PRICE_ID_GROWTH_YEARLY
+      : process.env.STRIPE_PRICE_ID_GROWTH;
+  }
+
+  return billing === "yearly"
+    ? process.env.STRIPE_PRICE_ID_ENTERPRISE_YEARLY
+    : process.env.STRIPE_PRICE_ID_ENTERPRISE;
 }
 
 function appOrigin(request: Request): string {
@@ -41,9 +49,11 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => null)) as {
       tier?: unknown;
+      billing?: unknown;
     } | null;
 
     const tier = body?.tier;
+    const billing: BillingPeriod = body?.billing === "yearly" ? "yearly" : "monthly";
 
     if (
       typeof tier !== "string" ||
@@ -59,15 +69,19 @@ export async function POST(request: Request) {
     }
 
     const tierId = tier as PaidSelfServeTierId;
-    const priceId = getPriceId(tierId);
+    const priceId = getPriceId(tierId, billing)?.trim();
     if (!priceId) {
       const hint =
-        tierId === "growth"
-          ? "STRIPE_PRICE_ID_GROWTH"
-          : "STRIPE_PRICE_ID_ENTERPRISE";
+        billing === "yearly"
+          ? tierId === "growth"
+            ? "STRIPE_PRICE_ID_GROWTH_YEARLY"
+            : "STRIPE_PRICE_ID_ENTERPRISE_YEARLY"
+          : tierId === "growth"
+            ? "STRIPE_PRICE_ID_GROWTH"
+            : "STRIPE_PRICE_ID_ENTERPRISE";
       return NextResponse.json(
         {
-          error: `Stripe price ID missing for ${tierId}. Add ${hint} to .env.local.`,
+          error: `Stripe price ID missing for ${tierId} (${billing}). Add ${hint} to .env.local.`,
         },
         { status: 500 },
       );
@@ -82,9 +96,9 @@ export async function POST(request: Request) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/pricing?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing?canceled=1`,
-      metadata: { tier: tierId, user_id: user.id },
+      metadata: { tier: tierId, billing, user_id: user.id },
       subscription_data: {
-        metadata: { tier: tierId, user_id: user.id },
+        metadata: { tier: tierId, billing, user_id: user.id },
       },
     });
 

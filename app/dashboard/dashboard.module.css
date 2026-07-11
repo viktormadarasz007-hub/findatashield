@@ -543,28 +543,3 @@
     grid-template-columns: 1fr;
   }
 }
-
-@media print {
-  body * {
-    visibility: hidden;
-  }
-
-  #compliance-report-section,
-  #compliance-report-section * {
-    visibility: visible;
-  }
-
-  #compliance-report-section {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    border: 1px solid #333333;
-    box-shadow: none;
-  }
-
-  .downloadComplianceButton {
-    display: none;
-  }
-}

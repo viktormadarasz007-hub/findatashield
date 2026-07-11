@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { PricingCards } from "@/components/PricingCards";
-import type { PaidSelfServeTierId, TierId } from "@/lib/subscription";
+import type { BillingPeriod, PaidSelfServeTierId, TierId } from "@/lib/subscription";
 
 import styles from "./pricing.module.css";
 
@@ -59,7 +59,7 @@ export function PricingView() {
     }
   }, [finalizeCheckout, searchParams]);
 
-  async function handleSubscribe(tier: PaidSelfServeTierId) {
+  async function handleSubscribe(tier: PaidSelfServeTierId, billing: BillingPeriod) {
     setError(null);
     setBanner(null);
     setCheckoutTier(tier);
@@ -68,7 +68,7 @@ export function PricingView() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier, billing }),
       });
 
       const data = (await res.json()) as { url?: string; error?: string };
@@ -118,6 +118,7 @@ export function PricingView() {
           </div>
           <nav className={styles.nav}>
             <Link href="/dashboard">Dashboard</Link>
+            <Link href="/datasets">My Datasets</Link>
             <Link href="/pricing" aria-current="page">
               Pricing
             </Link>
@@ -137,8 +138,9 @@ export function PricingView() {
         <section className={styles.intro}>
           <h1>Simple, transparent pricing</h1>
           <p>
-            Choose the plan that fits your team. All paid plans are billed monthly in
-            USD. Usage resets on the first of each month.
+            Choose the plan that fits your team. Switch between monthly and yearly
+            billing — save 17% with an annual plan. Usage resets on the first of
+            each month.
           </p>
         </section>
 
@@ -153,7 +155,7 @@ export function PricingView() {
         <PricingCards
           variant="app"
           checkoutTier={checkoutTier}
-          onSubscribe={(tier) => void handleSubscribe(tier)}
+          onSubscribe={(tier, billing) => void handleSubscribe(tier, billing)}
         />
       </div>
     </main>

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 import { getAuthenticatedUser } from "@/lib/auth";
+import type { ComplianceReport } from "@/lib/compliance-pdf";
+import { saveDataset } from "@/lib/datasets-db";
 import { MONTHLY_LIMIT_ERROR } from "@/lib/subscription";
 import {
   canGenerateExamples,
@@ -125,8 +127,8 @@ function safeParseData(text: string): Array<Record<string, unknown>> {
   );
 }
 
-function safeParseCompliance(text: string): Record<string, unknown> {
-  const parsed = JSON.parse(stripMarkdownCodeFences(text)) as Record<string, unknown>;
+function safeParseCompliance(text: string): ComplianceReport {
+  const parsed = JSON.parse(stripMarkdownCodeFences(text)) as ComplianceReport;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("Claude response did not include a valid compliance report object.");
   }
@@ -226,6 +228,14 @@ export async function POST(req: Request) {
 
     const usage = await incrementUsage(user.id, data.length, user.email);
 
+    const savedDataset = await saveDataset(user.id, {
+      data_type: type,
+      example_count: data.length,
+      generated_at: generatedAt,
+      data,
+      compliance_report: compliance_report,
+    });
+
     return NextResponse.json({
       type,
       count: data.length,
@@ -233,6 +243,7 @@ export async function POST(req: Request) {
       data,
       compliance_report,
       usage,
+      dataset_id: savedDataset.id,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Generation request failed.";

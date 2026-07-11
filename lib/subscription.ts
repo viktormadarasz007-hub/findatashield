@@ -1,8 +1,31 @@
 export type TierId = "free" | "growth" | "enterprise" | "custom";
 
-/** Tiers that use Stripe Checkout (monthly billing). */
+/** Tiers that use Stripe Checkout (monthly or yearly billing). */
 export const PAID_SELF_SERVE_TIER_IDS = ["growth", "enterprise"] as const;
 export type PaidSelfServeTierId = (typeof PAID_SELF_SERVE_TIER_IDS)[number];
+
+export type BillingPeriod = "monthly" | "yearly";
+
+export type YearlyPricing = {
+  equivalentMonthlyUsd: number;
+  annualTotalUsd: number;
+  annualSavingsUsd: number;
+};
+
+export const YEARLY_PRICING: Record<PaidSelfServeTierId, YearlyPricing> = {
+  growth: {
+    equivalentMonthlyUsd: 832,
+    annualTotalUsd: 9_990,
+    annualSavingsUsd: 1_998,
+  },
+  enterprise: {
+    equivalentMonthlyUsd: 4_166,
+    annualTotalUsd: 49_990,
+    annualSavingsUsd: 9_998,
+  },
+};
+
+export const YEARLY_DISCOUNT_LABEL = "Save 17%";
 
 export type TierDefinition = {
   id: TierId;

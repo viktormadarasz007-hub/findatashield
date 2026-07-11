@@ -1,3 +1,70 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.billingToggleWrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.billingToggleLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #486486;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.billingToggle {
+  display: inline-flex;
+  background: #eef2f8;
+  padding: 4px;
+  border-radius: 12px;
+  gap: 4px;
+  border: 1px solid #dde5f0;
+}
+
+.billingTab,
+.billingTabActive {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+}
+
+.billingTab {
+  background: transparent;
+  color: #577396;
+}
+
+.billingTabActive {
+  background: #ffffff;
+  color: #0f2748;
+  box-shadow: 0 2px 10px rgba(18, 40, 76, 0.1);
+}
+
+.saveBadge {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #1f7a45;
+  background: #e8f6ee;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -63,6 +130,20 @@
 .period {
   font-size: 13px;
   color: #6b7f99;
+  margin-bottom: 4px;
+}
+
+.annualTotal {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f2748;
+  margin-bottom: 4px;
+}
+
+.savings {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f7a45;
   margin-bottom: 12px;
 }
 
