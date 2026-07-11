@@ -16,11 +16,14 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [awaitingVerification, setAwaitingVerification] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setMessage(null);
+    setAwaitingVerification(false);
     setIsSubmitting(true);
 
     try {
@@ -28,6 +31,9 @@ export default function SignupPage() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (signUpError) {
@@ -46,6 +52,7 @@ export default function SignupPage() {
         return;
       }
 
+      setAwaitingVerification(true);
       setMessage(
         "Account created. Check your email to confirm your address, then sign in.",
       );
@@ -53,6 +60,40 @@ export default function SignupPage() {
       setError(err instanceof Error ? err.message : "Could not create account.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!email) {
+      setError("Enter your email address above, then resend the verification email.");
+      return;
+    }
+
+    setError(null);
+    setIsResending(true);
+
+    try {
+      const supabase = createClient();
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (resendError) {
+        throw resendError;
+      }
+
+      setMessage("Verification email sent. Check your inbox and spam folder.");
+      setAwaitingVerification(true);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not resend verification email.",
+      );
+    } finally {
+      setIsResending(false);
     }
   }
 
@@ -108,6 +149,17 @@ export default function SignupPage() {
           <button className={styles.submit} type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Creating account..." : "Sign up"}
           </button>
+
+          {awaitingVerification && (
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={() => void handleResendVerification()}
+              disabled={isResending || isSubmitting}
+            >
+              {isResending ? "Sending..." : "Resend verification email"}
+            </button>
+          )}
         </form>
 
         <p className={styles.footer}>

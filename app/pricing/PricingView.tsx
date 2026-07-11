@@ -15,7 +15,7 @@ import styles from "./pricing.module.css";
 const DISPLAY_ORDER: TierId[] = ["free", "growth", "enterprise", "custom"];
 
 const CONTACT_SALES_MAIL =
-  "mailto:hello@findatashield.com?subject=FinDataShield%20Custom%20Plan";
+  "mailto:viktorm@findatashield.com?subject=FinDataShield%20Custom%20Plan";
 
 function formatUsdAmount(n: number): string {
   return new Intl.NumberFormat("en-US", {
