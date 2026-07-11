@@ -94,8 +94,24 @@ function extractTextContent(content: Anthropic.Messages.ContentBlock[]): string 
     .trim();
 }
 
+function stripMarkdownCodeFences(text: string): string {
+  let cleaned = text.trim();
+
+  const fencedMatch = cleaned.match(/^```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```$/i);
+  if (fencedMatch) {
+    return fencedMatch[1].trim();
+  }
+
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\r?\n?/i, "");
+    cleaned = cleaned.replace(/\r?\n?```\s*$/, "");
+  }
+
+  return cleaned.trim();
+}
+
 function safeParseData(text: string): Array<Record<string, unknown>> {
-  const parsed = JSON.parse(text) as {
+  const parsed = JSON.parse(stripMarkdownCodeFences(text)) as {
     data?: unknown;
   };
 
@@ -110,7 +126,7 @@ function safeParseData(text: string): Array<Record<string, unknown>> {
 }
 
 function safeParseCompliance(text: string): Record<string, unknown> {
-  const parsed = JSON.parse(text) as Record<string, unknown>;
+  const parsed = JSON.parse(stripMarkdownCodeFences(text)) as Record<string, unknown>;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("Claude response did not include a valid compliance report object.");
   }
