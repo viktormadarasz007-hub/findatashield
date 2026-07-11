@@ -68,7 +68,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const usage = await setUserTier(user.id, tier);
+    const usage = await setUserTier(user.id, tier, user.email);
 
     return NextResponse.json({
       tier,

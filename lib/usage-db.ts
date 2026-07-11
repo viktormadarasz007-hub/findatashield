@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdminEmail, ADMIN_PLAN_NAME } from "@/lib/admin";
 import {
   getTierLimit,
   isTierId,
@@ -19,6 +20,8 @@ export type UsageSnapshot = {
   year: number;
   examples_used: number;
   limit: number;
+  is_admin?: boolean;
+  plan_name?: string;
 };
 
 function getCurrentPeriod(now = new Date()) {
@@ -152,8 +155,24 @@ export async function initializeFreeUsage(userId: string): Promise<void> {
   }
 }
 
-export function toUsageSnapshot(record: UsageRecord): UsageSnapshot {
+export function toUsageSnapshot(
+  record: UsageRecord,
+  email?: string | null,
+): UsageSnapshot {
   const tier = normalizeTier(record.tier);
+
+  if (isAdminEmail(email)) {
+    return {
+      tier,
+      month: record.month,
+      year: record.year,
+      examples_used: record.examples_used,
+      limit: Number.POSITIVE_INFINITY,
+      is_admin: true,
+      plan_name: ADMIN_PLAN_NAME,
+    };
+  }
+
   return {
     tier,
     month: record.month,
@@ -163,25 +182,28 @@ export function toUsageSnapshot(record: UsageRecord): UsageSnapshot {
   };
 }
 
-export async function getUsageSnapshot(userId: string): Promise<UsageSnapshot> {
+export async function getUsageSnapshot(
+  userId: string,
+  email?: string | null,
+): Promise<UsageSnapshot> {
   const record = await getOrCreateUsageRecord(userId);
-  return toUsageSnapshot(record);
+  return toUsageSnapshot(record, email);
 }
 
 export async function canGenerateExamples(
   userId: string,
   requested: number,
+  email?: string | null,
 ): Promise<{ allowed: boolean; snapshot: UsageSnapshot }> {
   const record = await getOrCreateUsageRecord(userId);
-  const snapshot = toUsageSnapshot(record);
-  const limit = snapshot.limit;
+  const snapshot = toUsageSnapshot(record, email);
 
-  if (!Number.isFinite(limit)) {
+  if (snapshot.is_admin || !Number.isFinite(snapshot.limit)) {
     return { allowed: true, snapshot };
   }
 
   return {
-    allowed: record.examples_used + requested <= limit,
+    allowed: record.examples_used + requested <= snapshot.limit,
     snapshot,
   };
 }
@@ -189,6 +211,7 @@ export async function canGenerateExamples(
 export async function incrementUsage(
   userId: string,
   delta: number,
+  email?: string | null,
 ): Promise<UsageSnapshot> {
   const supabase = createAdminClient();
   const amount = Math.max(0, Math.floor(delta));
@@ -207,18 +230,22 @@ export async function incrementUsage(
     throw new Error(`Failed to update usage: ${error?.message ?? "Unknown error"}`);
   }
 
-  return toUsageSnapshot({
-    user_id: data.user_id,
-    month: data.month,
-    year: data.year,
-    examples_used: data.examples_used,
-    tier: normalizeTier(data.tier),
-  });
+  return toUsageSnapshot(
+    {
+      user_id: data.user_id,
+      month: data.month,
+      year: data.year,
+      examples_used: data.examples_used,
+      tier: normalizeTier(data.tier),
+    },
+    email,
+  );
 }
 
 export async function setUserTier(
   userId: string,
   tier: TierId,
+  email?: string | null,
 ): Promise<UsageSnapshot> {
   const supabase = createAdminClient();
   const record = await getOrCreateUsageRecord(userId);
@@ -236,11 +263,14 @@ export async function setUserTier(
     throw new Error(`Failed to update tier: ${error?.message ?? "Unknown error"}`);
   }
 
-  return toUsageSnapshot({
-    user_id: data.user_id,
-    month: data.month,
-    year: data.year,
-    examples_used: data.examples_used,
-    tier: normalizeTier(data.tier),
-  });
+  return toUsageSnapshot(
+    {
+      user_id: data.user_id,
+      month: data.month,
+      year: data.year,
+      examples_used: data.examples_used,
+      tier: normalizeTier(data.tier),
+    },
+    email,
+  );
 }

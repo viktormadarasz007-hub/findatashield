@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   try {
-    const usage = await getUsageSnapshot(user.id);
+    const usage = await getUsageSnapshot(user.id, user.email);
     return NextResponse.json(usage);
   } catch (error) {
     const message =

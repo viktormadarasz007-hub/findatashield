@@ -149,7 +149,7 @@ export async function POST(req: Request) {
 
   let usageBeforeGeneration: UsageSnapshot;
   try {
-    const quota = await canGenerateExamples(user.id, count);
+    const quota = await canGenerateExamples(user.id, count, user.email);
     usageBeforeGeneration = quota.snapshot;
 
     if (!quota.allowed) {
@@ -208,7 +208,7 @@ export async function POST(req: Request) {
     const complianceText = extractTextContent(complianceCompletion.content);
     const compliance_report = safeParseCompliance(complianceText);
 
-    const usage = await incrementUsage(user.id, data.length);
+    const usage = await incrementUsage(user.id, data.length, user.email);
 
     return NextResponse.json({
       type,

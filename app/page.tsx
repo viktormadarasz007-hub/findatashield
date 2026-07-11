@@ -147,8 +147,10 @@ export default function Home() {
   }, [columns, rows]);
 
   const tier = usage?.tier ?? "free";
+  const isAdmin = usage?.is_admin === true;
+  const planName = usage?.plan_name ?? TIERS[tier as TierId].name;
   const usedThisMonth = usage?.examples_used ?? 0;
-  const hasMonthlyCap = tierHasFixedMonthlyLimit(tier);
+  const hasMonthlyCap = !isAdmin && tierHasFixedMonthlyLimit(tier);
   const monthlyLimit = usage?.limit ?? getTierLimit(tier);
   const usagePercent =
     hasMonthlyCap && Number.isFinite(monthlyLimit)
@@ -158,7 +160,7 @@ export default function Home() {
   async function handleGenerate() {
     setError(null);
 
-    if (usage) {
+    if (usage && !usage.is_admin) {
       const limit = usage.limit;
       if (Number.isFinite(limit) && usedThisMonth + count > limit) {
         setError(MONTHLY_LIMIT_ERROR);
@@ -272,10 +274,12 @@ export default function Home() {
               <span className={styles.usageLabel}>Monthly usage</span>
               <p className={styles.usagePlan}>
                 Plan:{" "}
-                <strong>{TIERS[tier as TierId].name}</strong>
-                <Link href="/pricing" className={styles.usageUpgrade}>
-                  Upgrade
-                </Link>
+                <strong>{planName}</strong>
+                {!isAdmin && (
+                  <Link href="/pricing" className={styles.usageUpgrade}>
+                    Upgrade
+                  </Link>
+                )}
               </p>
             </div>
           </div>
@@ -294,6 +298,15 @@ export default function Home() {
                   style={{ width: `${usagePercent}%` }}
                 />
               </div>
+            </>
+          ) : isAdmin ? (
+            <>
+              <p className={styles.usageCounts}>
+                {formatExampleCount(usedThisMonth)} examples generated this month
+              </p>
+              <p className={styles.usageUnlimited}>
+                Admin account — unlimited generation with no monthly cap.
+              </p>
             </>
           ) : (
             <>
