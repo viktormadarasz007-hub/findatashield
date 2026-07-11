@@ -1,6 +1,7 @@
 import type { ComplianceReport } from "@/lib/compliance-pdf";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+/** Column name in Supabase: example_count */
 export type DatasetSummary = {
   id: string;
   data_type: string;
@@ -20,6 +21,39 @@ type SaveDatasetInput = {
   data: Array<Record<string, unknown>>;
   compliance_report: ComplianceReport;
 };
+
+function mapDatasetSummary(row: {
+  id: string;
+  data_type: string;
+  example_count: number;
+  generated_at: string;
+}): DatasetSummary {
+  return {
+    id: row.id,
+    data_type: row.data_type,
+    example_count: row.example_count,
+    generated_at: row.generated_at,
+  };
+}
+
+function mapStoredDataset(row: {
+  id: string;
+  data_type: string;
+  example_count: number;
+  generated_at: string;
+  data: unknown;
+  compliance_report: unknown;
+}): StoredDataset {
+  return {
+    ...mapDatasetSummary(row),
+    data: row.data as Array<Record<string, unknown>>,
+    compliance_report: normalizeComplianceReport(row.compliance_report),
+  };
+}
+
+const DATASET_SUMMARY_COLUMNS = "id, data_type, example_count, generated_at";
+const DATASET_FULL_COLUMNS =
+  "id, data_type, example_count, generated_at, data, compliance_report";
 
 function normalizeComplianceReport(value: unknown): ComplianceReport {
   const report = value as ComplianceReport;
@@ -45,21 +79,14 @@ export async function saveDataset(
       data: input.data,
       compliance_report: input.compliance_report,
     })
-    .select("id, data_type, example_count, generated_at, data, compliance_report")
+    .select(DATASET_FULL_COLUMNS)
     .single();
 
   if (error || !data) {
     throw new Error(`Failed to save dataset: ${error?.message ?? "Unknown error"}`);
   }
 
-  return {
-    id: data.id,
-    data_type: data.data_type,
-    example_count: data.example_count,
-    generated_at: data.generated_at,
-    data: data.data as Array<Record<string, unknown>>,
-    compliance_report: normalizeComplianceReport(data.compliance_report),
-  };
+  return mapStoredDataset(data);
 }
 
 export async function listDatasets(userId: string): Promise<DatasetSummary[]> {
@@ -67,7 +94,7 @@ export async function listDatasets(userId: string): Promise<DatasetSummary[]> {
 
   const { data, error } = await supabase
     .from("datasets")
-    .select("id, data_type, example_count, generated_at")
+    .select(DATASET_SUMMARY_COLUMNS)
     .eq("user_id", userId)
     .order("generated_at", { ascending: false });
 
@@ -75,12 +102,7 @@ export async function listDatasets(userId: string): Promise<DatasetSummary[]> {
     throw new Error(`Failed to load datasets: ${error.message}`);
   }
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    data_type: row.data_type,
-    example_count: row.example_count,
-    generated_at: row.generated_at,
-  }));
+  return (data ?? []).map(mapDatasetSummary);
 }
 
 export async function getDataset(
@@ -91,7 +113,7 @@ export async function getDataset(
 
   const { data, error } = await supabase
     .from("datasets")
-    .select("id, data_type, example_count, generated_at, data, compliance_report")
+    .select(DATASET_FULL_COLUMNS)
     .eq("user_id", userId)
     .eq("id", datasetId)
     .maybeSingle();
@@ -104,12 +126,5 @@ export async function getDataset(
     return null;
   }
 
-  return {
-    id: data.id,
-    data_type: data.data_type,
-    example_count: data.example_count,
-    generated_at: data.generated_at,
-    data: data.data as Array<Record<string, unknown>>,
-    compliance_report: normalizeComplianceReport(data.compliance_report),
-  };
+  return mapStoredDataset(data);
 }

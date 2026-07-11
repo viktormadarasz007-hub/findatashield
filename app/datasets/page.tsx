@@ -6,16 +6,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { downloadComplianceReportPdf } from "@/lib/compliance-pdf";
 import { csvFilename, downloadCsvFile } from "@/lib/dataset-export";
-import type { StoredDataset } from "@/lib/datasets-db";
+import type { DatasetSummary, StoredDataset } from "@/lib/datasets-db";
 
 import styles from "./datasets.module.css";
-
-type DatasetSummary = {
-  id: string;
-  data_type: string;
-  example_count: number;
-  generated_at: string;
-};
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("en-US", {
