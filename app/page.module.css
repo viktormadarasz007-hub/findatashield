@@ -65,6 +65,27 @@
   text-underline-offset: 4px;
 }
 
+.signOutButton {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.signOutButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.signOutButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .dashboard {
   max-width: 980px;
   margin: -60px auto 0;

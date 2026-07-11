@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+import { getAuthenticatedUser } from "@/lib/auth";
 import type { TierId } from "@/lib/subscription";
+import { setUserTier } from "@/lib/usage-db";
 
-const VALID_CHECKOUT_TIERS: TierId[] = ["starter", "growth", "scale"];
+const VALID_CHECKOUT_TIERS: TierId[] = ["growth", "enterprise"];
 
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -14,6 +16,11 @@ function getStripe(): Stripe {
 }
 
 export async function GET(request: Request) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const sessionId = searchParams.get("session_id");
 
@@ -27,6 +34,14 @@ export async function GET(request: Request) {
   try {
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    const sessionUserId = session.metadata?.user_id;
+    if (sessionUserId && sessionUserId !== user.id) {
+      return NextResponse.json(
+        { error: "Checkout session does not belong to the signed-in user." },
+        { status: 403 },
+      );
+    }
 
     let tier = session.metadata?.tier as TierId | undefined;
     if (!tier || !VALID_CHECKOUT_TIERS.includes(tier)) {
@@ -53,8 +68,11 @@ export async function GET(request: Request) {
       );
     }
 
+    const usage = await setUserTier(user.id, tier);
+
     return NextResponse.json({
       tier,
+      usage,
       payment_status: session.payment_status,
     });
   } catch (e) {

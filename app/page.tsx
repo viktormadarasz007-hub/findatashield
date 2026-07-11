@@ -1,20 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  applyMonthRollover,
   getTierLimit,
-  incrementUsedExamples,
-  initialUsageState,
-  isTierId,
   MONTHLY_LIMIT_ERROR,
-  setTier,
   TIERS,
   tierHasFixedMonthlyLimit,
-  type UsageState,
+  type TierId,
 } from "@/lib/subscription";
+import type { UsageSnapshot } from "@/lib/usage-db";
 
 import styles from "./page.module.css";
 
@@ -44,6 +41,7 @@ type GenerateResponse = {
     audit_trail: string;
     recommendations: string[];
   };
+  usage: UsageSnapshot;
 };
 
 const DATA_TYPES: DataType[] = [
@@ -84,31 +82,41 @@ function formatExampleCount(n: number): string {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [type, setType] = useState<DataType>("Fraud Transactions");
   const [count, setCount] = useState<number>(50);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingUsage, setIsLoadingUsage] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateResponse | null>(null);
+  const [usage, setUsage] = useState<UsageSnapshot | null>(null);
 
   const rows = useMemo(() => result?.data ?? [], [result?.data]);
 
-  const [usage, setUsage] = useState<UsageState>(() =>
-    applyMonthRollover(initialUsageState()),
-  );
+  const loadUsage = useCallback(async () => {
+    const response = await fetch("/api/usage");
+    const payload = (await response.json()) as UsageSnapshot & { error?: string };
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const plan = params.get("plan");
-    if (!plan || !isTierId(plan)) {
-      return;
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Could not load usage.");
     }
 
-    window.history.replaceState({}, "", "/");
-
-    queueMicrotask(() => {
-      setUsage((prev) => setTier(applyMonthRollover(prev), plan));
-    });
+    setUsage(payload);
   }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        await loadUsage();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load usage.");
+      } finally {
+        setIsLoadingUsage(false);
+      }
+    })();
+  }, [loadUsage]);
+
   const hasData = rows.length > 0;
 
   const columns = useMemo(
@@ -138,11 +146,10 @@ export default function Home() {
     return Math.max(0, Math.min(100, Math.round((populatedCells / totalCells) * 100)));
   }, [columns, rows]);
 
-  const usageSnapshot = useMemo(() => applyMonthRollover(usage), [usage]);
-
-  const usedThisMonth = usageSnapshot.usedExamples;
-  const hasMonthlyCap = tierHasFixedMonthlyLimit(usageSnapshot.tier);
-  const monthlyLimit = getTierLimit(usageSnapshot.tier);
+  const tier = usage?.tier ?? "free";
+  const usedThisMonth = usage?.examples_used ?? 0;
+  const hasMonthlyCap = tierHasFixedMonthlyLimit(tier);
+  const monthlyLimit = usage?.limit ?? getTierLimit(tier);
   const usagePercent =
     hasMonthlyCap && Number.isFinite(monthlyLimit)
       ? Math.min(100, (usedThisMonth / monthlyLimit) * 100)
@@ -151,16 +158,12 @@ export default function Home() {
   async function handleGenerate() {
     setError(null);
 
-    const rolled = applyMonthRollover(usage);
-    setUsage(rolled);
-
-    const limit = getTierLimit(rolled.tier);
-    if (
-      Number.isFinite(limit) &&
-      rolled.usedExamples + count > limit
-    ) {
-      setError(MONTHLY_LIMIT_ERROR);
-      return;
+    if (usage) {
+      const limit = usage.limit;
+      if (Number.isFinite(limit) && usedThisMonth + count > limit) {
+        setError(MONTHLY_LIMIT_ERROR);
+        return;
+      }
     }
 
     setIsGenerating(true);
@@ -177,19 +180,33 @@ export default function Home() {
 
       const payload = (await response.json()) as GenerateResponse & {
         error?: string;
+        usage?: UsageSnapshot;
       };
 
       if (!response.ok) {
+        if (payload.usage) {
+          setUsage(payload.usage);
+        }
         throw new Error(payload.error ?? "Generation failed.");
       }
 
       setResult(payload);
-
-      setUsage((prev) => incrementUsedExamples(prev, payload.count));
+      setUsage(payload.usage);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error occurred.");
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setIsSigningOut(false);
     }
   }
 
@@ -228,6 +245,14 @@ export default function Home() {
               Dashboard
             </Link>
             <Link href="/pricing">Pricing</Link>
+            <button
+              type="button"
+              className={styles.signOutButton}
+              onClick={() => void handleSignOut()}
+              disabled={isSigningOut}
+            >
+              {isSigningOut ? "Signing out..." : "Sign out"}
+            </button>
           </nav>
         </div>
       </header>
@@ -247,14 +272,16 @@ export default function Home() {
               <span className={styles.usageLabel}>Monthly usage</span>
               <p className={styles.usagePlan}>
                 Plan:{" "}
-                <strong>{TIERS[usageSnapshot.tier].name}</strong>
+                <strong>{TIERS[tier as TierId].name}</strong>
                 <Link href="/pricing" className={styles.usageUpgrade}>
                   Upgrade
                 </Link>
               </p>
             </div>
           </div>
-          {hasMonthlyCap ? (
+          {isLoadingUsage ? (
+            <p className={styles.usageCounts}>Loading usage...</p>
+          ) : hasMonthlyCap ? (
             <>
               <p className={styles.usageCounts}>
                 {formatExampleCount(usedThisMonth)} /{" "}
@@ -274,7 +301,7 @@ export default function Home() {
                 {formatExampleCount(usedThisMonth)} examples generated this month
               </p>
               <p className={styles.usageUnlimited}>
-                Enterprise has no fixed monthly example limit.
+                Your plan includes a custom example volume tailored to your needs.
               </p>
             </>
           )}
@@ -318,8 +345,8 @@ export default function Home() {
 
         <button
           className={styles.generateButton}
-          onClick={handleGenerate}
-          disabled={isGenerating}
+          onClick={() => void handleGenerate()}
+          disabled={isGenerating || isLoadingUsage}
         >
           {isGenerating ? "Generating..." : "Generate"}
         </button>

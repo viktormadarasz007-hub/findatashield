@@ -1,62 +1,52 @@
-export type TierId = "free" | "starter" | "growth" | "scale" | "enterprise";
+export type TierId = "free" | "growth" | "enterprise" | "custom";
 
-/** Tiers that use Stripe Checkout (monthly or yearly). */
-export const PAID_SELF_SERVE_TIER_IDS = ["starter", "growth", "scale"] as const;
+/** Tiers that use Stripe Checkout (monthly billing). */
+export const PAID_SELF_SERVE_TIER_IDS = ["growth", "enterprise"] as const;
 export type PaidSelfServeTierId = (typeof PAID_SELF_SERVE_TIER_IDS)[number];
-
-export type BillingPeriod = "monthly" | "yearly";
 
 export type TierDefinition = {
   id: TierId;
   name: string;
-  /** null = custom pricing (Enterprise only) */
+  description: string;
+  /** null = pricing on request (Custom only) */
   priceMonthlyUsd: number | null;
-  /** null = no fixed monthly example cap */
+  /** null = custom example volume (Custom only) */
   monthlyExampleLimit: number | null;
+  /** Highlight as recommended on pricing page */
+  recommended?: boolean;
 };
 
 export const TIERS: Record<TierId, TierDefinition> = {
   free: {
     id: "free",
     name: "Free",
+    description: "For individuals trying the platform.",
     priceMonthlyUsd: 0,
     monthlyExampleLimit: 500,
-  },
-  starter: {
-    id: "starter",
-    name: "Starter",
-    priceMonthlyUsd: 299,
-    monthlyExampleLimit: 10_000,
   },
   growth: {
     id: "growth",
     name: "Growth",
+    description: "Recommended for teams scaling synthetic data workflows.",
     priceMonthlyUsd: 999,
     monthlyExampleLimit: 50_000,
-  },
-  scale: {
-    id: "scale",
-    name: "Scale",
-    priceMonthlyUsd: 2999,
-    monthlyExampleLimit: 200_000,
+    recommended: true,
   },
   enterprise: {
     id: "enterprise",
     name: "Enterprise",
+    description: "For serious ML teams with high-volume needs.",
+    priceMonthlyUsd: 4999,
+    monthlyExampleLimit: 500_000,
+  },
+  custom: {
+    id: "custom",
+    name: "Custom",
+    description: "For large institutions needing dedicated support.",
     priceMonthlyUsd: null,
     monthlyExampleLimit: null,
   },
 };
-
-/** Yearly plans bill 10× monthly (2 months free). */
-export function yearlyPriceFromMonthlyUsd(monthlyUsd: number): number {
-  return monthlyUsd * 10;
-}
-
-/** Savings vs paying monthly × 12 for one year. */
-export function yearlySavingsUsd(monthlyUsd: number): number {
-  return monthlyUsd * 12 - yearlyPriceFromMonthlyUsd(monthlyUsd);
-}
 
 export const MONTHLY_LIMIT_ERROR =
   "Monthly limit reached — upgrade your plan or wait until next month";
@@ -91,7 +81,7 @@ export function applyMonthRollover(state: UsageState): UsageState {
   return state;
 }
 
-/** Infinity means no cap (Enterprise). */
+/** Infinity means no fixed cap (Custom). */
 export function getTierLimit(tier: TierId): number {
   const lim = TIERS[tier].monthlyExampleLimit;
   return lim === null ? Number.POSITIVE_INFINITY : lim;
@@ -131,10 +121,9 @@ export function setTier(state: UsageState, tier: TierId): UsageState {
 export function isTierId(value: string): value is TierId {
   return (
     value === "free" ||
-    value === "starter" ||
     value === "growth" ||
-    value === "scale" ||
-    value === "enterprise"
+    value === "enterprise" ||
+    value === "custom"
   );
 }
 

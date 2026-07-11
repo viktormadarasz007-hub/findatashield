@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+import { getAuthenticatedUser } from "@/lib/auth";
 import {
-  type BillingPeriod,
   type PaidSelfServeTierId,
   PAID_SELF_SERVE_TIER_IDS,
 } from "@/lib/subscription";
@@ -15,22 +15,11 @@ function getStripe(): Stripe {
   return new Stripe(key);
 }
 
-function getPriceId(
-  tier: PaidSelfServeTierId,
-  billing: BillingPeriod,
-): string | undefined {
+function getPriceId(tier: PaidSelfServeTierId): string | undefined {
   const env =
-    tier === "starter"
-      ? billing === "monthly"
-        ? process.env.STRIPE_PRICE_ID_STARTER_MONTHLY
-        : process.env.STRIPE_PRICE_ID_STARTER_YEARLY
-      : tier === "growth"
-        ? billing === "monthly"
-          ? process.env.STRIPE_PRICE_ID_GROWTH_MONTHLY
-          : process.env.STRIPE_PRICE_ID_GROWTH_YEARLY
-        : billing === "monthly"
-          ? process.env.STRIPE_PRICE_ID_SCALE_MONTHLY
-          : process.env.STRIPE_PRICE_ID_SCALE_YEARLY;
+    tier === "growth"
+      ? process.env.STRIPE_PRICE_ID_GROWTH
+      : process.env.STRIPE_PRICE_ID_ENTERPRISE;
   return env?.trim() || undefined;
 }
 
@@ -44,14 +33,17 @@ function appOrigin(request: Request): string {
 }
 
 export async function POST(request: Request) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
   try {
     const body = (await request.json().catch(() => null)) as {
       tier?: unknown;
-      billing?: unknown;
     } | null;
 
     const tier = body?.tier;
-    const billingRaw = body?.billing;
 
     if (
       typeof tier !== "string" ||
@@ -60,25 +52,22 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Invalid tier. Checkout is available for Starter, Growth, and Scale. Choose Free for no charge, or Enterprise via Contact Sales.",
+            "Invalid tier. Checkout is available for Growth and Enterprise. Choose Free for no charge, or Custom via Contact Sales.",
         },
         { status: 400 },
       );
     }
 
-    const billing: BillingPeriod =
-      billingRaw === "yearly" ? "yearly" : "monthly";
-
     const tierId = tier as PaidSelfServeTierId;
-    const priceId = getPriceId(tierId, billing);
+    const priceId = getPriceId(tierId);
     if (!priceId) {
       const hint =
-        billing === "monthly"
-          ? "STRIPE_PRICE_ID_STARTER_MONTHLY, STRIPE_PRICE_ID_GROWTH_MONTHLY, STRIPE_PRICE_ID_SCALE_MONTHLY"
-          : "STRIPE_PRICE_ID_STARTER_YEARLY, STRIPE_PRICE_ID_GROWTH_YEARLY, STRIPE_PRICE_ID_SCALE_YEARLY";
+        tierId === "growth"
+          ? "STRIPE_PRICE_ID_GROWTH"
+          : "STRIPE_PRICE_ID_ENTERPRISE";
       return NextResponse.json(
         {
-          error: `Stripe price ID missing for ${tierId} (${billing} billing). Add ${hint} to .env.local.`,
+          error: `Stripe price ID missing for ${tierId}. Add ${hint} to .env.local.`,
         },
         { status: 500 },
       );
@@ -89,12 +78,13 @@ export async function POST(request: Request) {
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      customer_email: user.email,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/pricing?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing?canceled=1`,
-      metadata: { tier: tierId, billing },
+      metadata: { tier: tierId, user_id: user.id },
       subscription_data: {
-        metadata: { tier: tierId, billing },
+        metadata: { tier: tierId, user_id: user.id },
       },
     });
 

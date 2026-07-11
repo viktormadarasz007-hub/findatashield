@@ -19,7 +19,7 @@
 }
 
 .topHeaderInner {
-  max-width: 980px;
+  max-width: 1100px;
   margin: 0 auto;
   display: flex;
   align-items: flex-start;
@@ -64,8 +64,29 @@
   color: #ffffff;
 }
 
+.signOutButton {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.signOutButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.signOutButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .shell {
-  max-width: 980px;
+  max-width: 1100px;
   margin: -24px auto 0;
   padding: 0;
 }
@@ -75,12 +96,13 @@
   border: 1px solid #e4e9f3;
   border-radius: 14px;
   padding: 28px 24px;
-  margin-bottom: 20px;
+  margin-bottom: 28px;
   box-shadow: 0 12px 36px rgba(18, 40, 76, 0.06);
+  text-align: center;
 }
 
 .intro h1 {
-  font-size: 26px;
+  font-size: 28px;
   color: #0f2748;
   margin-bottom: 10px;
 }
@@ -89,69 +111,8 @@
   color: #4f637d;
   font-size: 15px;
   line-height: 1.55;
-  max-width: 720px;
-}
-
-.billingToggleWrap {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.billingToggleLabel {
-  font-size: 13px;
-  font-weight: 700;
-  color: #486486;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.billingToggle {
-  display: inline-flex;
-  background: #eef2f8;
-  padding: 4px;
-  border-radius: 12px;
-  gap: 4px;
-  border: 1px solid #dde5f0;
-}
-
-.billingTab,
-.billingTabActive {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: inherit;
-}
-
-.billingTab {
-  background: transparent;
-  color: #577396;
-}
-
-.billingTabActive {
-  background: #ffffff;
-  color: #0f2748;
-  box-shadow: 0 2px 10px rgba(18, 40, 76, 0.1);
-}
-
-.twoMonthsFree {
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #1f7a45;
-  background: #e8f6ee;
-  padding: 2px 8px;
-  border-radius: 999px;
+  max-width: 560px;
+  margin: 0 auto;
 }
 
 .banner {
@@ -177,91 +138,113 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
+  align-items: stretch;
 }
 
 .card {
+  position: relative;
   background: #ffffff;
   border: 1px solid #e4e9f3;
   border-radius: 14px;
-  padding: 24px;
-  box-shadow: 0 12px 36px rgba(18, 40, 76, 0.06);
+  padding: 24px 20px;
+  box-shadow: 0 8px 28px rgba(18, 40, 76, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+}
+
+.cardPopular {
+  border: 2px solid #115ed8;
+  box-shadow: 0 16px 40px rgba(17, 94, 216, 0.14);
+  transform: translateY(-4px);
+}
+
+.popularBadge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #115ed8;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .card h2 {
-  font-size: 18px;
+  font-size: 20px;
   color: #173459;
+  margin-top: 4px;
+}
+
+.description {
+  font-size: 13px;
+  color: #6b7f99;
+  line-height: 1.45;
+  min-height: 2.9em;
+  margin-bottom: 8px;
 }
 
 .price {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
   color: #0e3d78;
-  margin-top: 8px;
-}
-
-.priceCustom {
-  font-size: 28px;
-  font-weight: 800;
-  color: #0e3d78;
-  margin-top: 8px;
+  line-height: 1.2;
 }
 
 .period {
   font-size: 13px;
   color: #6b7f99;
-  margin-bottom: 8px;
-  min-height: 2.6em;
-}
-
-.savingsHint {
-  font-size: 13px;
-  font-weight: 600;
-  color: #3d6b52;
-  margin-bottom: 4px;
-  min-height: 2.6em;
-}
-
-.savingsBadge {
-  font-size: 14px;
-  font-weight: 800;
-  color: #1f5c36;
-  background: #e8f6ee;
-  border: 1px solid #b8dfc8;
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin-bottom: 4px;
+  margin-bottom: 12px;
 }
 
 .limit {
   font-size: 14px;
+  font-weight: 600;
   color: #284465;
   flex: 1;
+  padding-top: 8px;
+  border-top: 1px solid #edf2fa;
 }
 
-.subscribe {
+.subscribe,
+.subscribePopular {
   margin-top: 16px;
   width: 100%;
   height: 44px;
   border: none;
   border-radius: 10px;
-  background: #0f5ad3;
-  color: #ffffff;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+  font-family: inherit;
+}
+
+.subscribe {
+  background: #0f5ad3;
+  color: #ffffff;
   box-shadow: 0 10px 22px rgba(15, 90, 211, 0.22);
 }
 
-.subscribe:hover:not(:disabled) {
+.subscribePopular {
+  background: #115ed8;
+  color: #ffffff;
+  box-shadow: 0 12px 26px rgba(17, 94, 216, 0.32);
+}
+
+.subscribe:hover:not(:disabled),
+.subscribePopular:hover:not(:disabled) {
   background: #0d4db3;
 }
 
-.subscribe:disabled {
+.subscribe:disabled,
+.subscribePopular:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
@@ -271,13 +254,12 @@
   width: 100%;
   height: 44px;
   border-radius: 10px;
-  border: none;
-  background: #0f5ad3;
-  color: #ffffff;
+  border: 2px solid #115ed8;
+  background: #ffffff;
+  color: #115ed8;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 10px 22px rgba(15, 90, 211, 0.22);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -286,7 +268,7 @@
 }
 
 .contactSales:hover {
-  background: #0d4db3;
+  background: #f1f7ff;
 }
 
 .chooseFree {
@@ -294,9 +276,9 @@
   width: 100%;
   height: 44px;
   border-radius: 10px;
-  border: 2px solid #115ed8;
+  border: 2px solid #cfd9e8;
   background: #ffffff;
-  color: #115ed8;
+  color: #284465;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -308,24 +290,22 @@
 }
 
 .chooseFree:hover {
-  background: #f1f7ff;
+  background: #f8fbff;
+  border-color: #115ed8;
+  color: #115ed8;
 }
 
-.note {
-  margin-top: 28px;
-  font-size: 13px;
-  color: #577396;
-  line-height: 1.5;
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cardPopular {
+    transform: none;
+  }
 }
 
-.note code {
-  font-size: 12px;
-  background: #eef2f8;
-  padding: 2px 6px;
-  border-radius: 6px;
-}
-
-@media (max-width: 900px) {
+@media (max-width: 640px) {
   .grid {
     grid-template-columns: 1fr;
   }
@@ -340,6 +320,10 @@
   }
 
   .brand a {
+    font-size: 24px;
+  }
+
+  .intro h1 {
     font-size: 24px;
   }
 }

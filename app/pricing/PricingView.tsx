@@ -5,28 +5,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  type BillingPeriod,
   type PaidSelfServeTierId,
   type TierId,
   TIERS,
-  yearlyPriceFromMonthlyUsd,
-  yearlySavingsUsd,
 } from "@/lib/subscription";
 
 import styles from "./pricing.module.css";
 
-const DISPLAY_ORDER: TierId[] = [
-  "free",
-  "starter",
-  "growth",
-  "scale",
-  "enterprise",
-];
+const DISPLAY_ORDER: TierId[] = ["free", "growth", "enterprise", "custom"];
 
 const CONTACT_SALES_MAIL =
-  "mailto:hello@findata.ai?subject=FinDataShield%20Enterprise";
+  "mailto:hello@findatashield.com?subject=FinDataShield%20Custom%20Plan";
 
-function formatUsd(n: number): string {
+function formatUsdAmount(n: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -42,12 +33,12 @@ export function PricingView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const processedSessionRef = useRef<string | null>(null);
-  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const [checkoutTier, setCheckoutTier] = useState<PaidSelfServeTierId | null>(
     null,
   );
   const [banner, setBanner] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const checkoutCanceled = searchParams.get("canceled") === "1";
 
@@ -65,7 +56,7 @@ export function PricingView() {
         }
 
         if (data.tier) {
-          router.replace(`/?plan=${encodeURIComponent(data.tier)}`, {
+          router.replace("/", {
             scroll: false,
           });
           return;
@@ -82,10 +73,7 @@ export function PricingView() {
 
   useEffect(() => {
     const sessionId = searchParams.get("session_id");
-    if (
-      sessionId &&
-      processedSessionRef.current !== sessionId
-    ) {
+    if (sessionId && processedSessionRef.current !== sessionId) {
       processedSessionRef.current = sessionId;
       void finalizeCheckout(sessionId);
     }
@@ -100,7 +88,7 @@ export function PricingView() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier, billing: billingPeriod }),
+        body: JSON.stringify({ tier }),
       });
 
       const data = (await res.json()) as { url?: string; error?: string };
@@ -127,61 +115,52 @@ export function PricingView() {
     }
   }
 
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
+
   return (
     <main className={styles.page}>
       <header className={styles.topHeader}>
         <div className={styles.topHeaderInner}>
           <div className={styles.brand}>
             <Link href="/">FinDataShield</Link>
-            <span className={styles.tagline}>Synthetic Financial Data & EU AI Act Compliance</span>
+            <span className={styles.tagline}>
+              Synthetic Financial Data & EU AI Act Compliance
+            </span>
           </div>
           <nav className={styles.nav}>
             <Link href="/">Dashboard</Link>
             <Link href="/pricing" aria-current="page">
               Pricing
             </Link>
+            <button
+              type="button"
+              className={styles.signOutButton}
+              onClick={() => void handleSignOut()}
+              disabled={isSigningOut}
+            >
+              {isSigningOut ? "Signing out..." : "Sign out"}
+            </button>
           </nav>
         </div>
       </header>
 
       <div className={styles.shell}>
         <section className={styles.intro}>
-          <h1>Plans &amp; pricing</h1>
+          <h1>Simple, transparent pricing</h1>
           <p>
-            Pick the volume that fits your team. Paid plans reset usage on the first of
-            each month. Annual billing includes two months free (10× monthly). Enterprise
-            is tailored to your organization.
+            Choose the plan that fits your team. All paid plans are billed monthly in
+            USD. Usage resets on the first of each month.
           </p>
         </section>
-
-        <div className={styles.billingToggleWrap}>
-          <span className={styles.billingToggleLabel}>Billing</span>
-          <div className={styles.billingToggle} role="tablist" aria-label="Billing period">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={billingPeriod === "monthly"}
-              className={
-                billingPeriod === "monthly" ? styles.billingTabActive : styles.billingTab
-              }
-              onClick={() => setBillingPeriod("monthly")}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={billingPeriod === "yearly"}
-              className={
-                billingPeriod === "yearly" ? styles.billingTabActive : styles.billingTab
-              }
-              onClick={() => setBillingPeriod("yearly")}
-            >
-              Yearly
-              <span className={styles.twoMonthsFree}>2 mo free</span>
-            </button>
-          </div>
-        </div>
 
         {checkoutCanceled && (
           <p className={styles.error}>
@@ -194,87 +173,71 @@ export function PricingView() {
         <div className={styles.grid}>
           {DISPLAY_ORDER.map((id) => {
             const tier = TIERS[id];
-            const isEnterprise = id === "enterprise";
+            const isCustom = id === "custom";
             const isFree = id === "free";
-            const monthly = tier.priceMonthlyUsd;
+            const isPopular = tier.recommended === true;
 
             return (
-              <article key={id} className={styles.card}>
-                <h2>{tier.name}</h2>
+              <article
+                key={id}
+                className={
+                  isPopular ? `${styles.card} ${styles.cardPopular}` : styles.card
+                }
+              >
+                {isPopular && (
+                  <span className={styles.popularBadge}>Most Popular</span>
+                )}
 
-                {isEnterprise ? (
+                <h2>{tier.name}</h2>
+                <p className={styles.description}>{tier.description}</p>
+
+                {isCustom ? (
                   <>
-                    <p className={styles.priceCustom}>Custom pricing</p>
-                    <p className={styles.period}>Volume &amp; terms built for your team</p>
-                    <p className={styles.limit}>Unlimited examples</p>
-                    <a className={styles.contactSales} href={CONTACT_SALES_MAIL}>
-                      Contact Sales
-                    </a>
+                    <p className={styles.price}>Pricing on request</p>
+                    <p className={styles.period}>Custom example volume tailored to your needs</p>
                   </>
                 ) : isFree ? (
                   <>
-                    <p className={styles.price}>{formatUsd(0)}</p>
-                    <p className={styles.period}>
-                      {billingPeriod === "yearly" ? "per year" : "per month"} · always free
-                    </p>
-                    <p className={styles.limit}>
-                      {formatCount(tier.monthlyExampleLimit!)} examples / month
-                    </p>
-                    <Link className={styles.chooseFree} href="/?plan=free">
-                      Start free
-                    </Link>
+                    <p className={styles.price}>{formatUsdAmount(0)} USD</p>
+                    <p className={styles.period}>forever</p>
                   </>
                 ) : (
                   <>
-                    {billingPeriod === "monthly" ? (
-                      <>
-                        <p className={styles.price}>{formatUsd(monthly!)}</p>
-                        <p className={styles.period}>per month</p>
-                        <p className={styles.savingsHint}>
-                          Save {formatUsd(yearlySavingsUsd(monthly!))}/year with yearly
-                          billing
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className={styles.price}>
-                          {formatUsd(yearlyPriceFromMonthlyUsd(monthly!))}
-                        </p>
-                        <p className={styles.period}>per year, billed annually</p>
-                        <p className={styles.savingsBadge}>
-                          Save {formatUsd(yearlySavingsUsd(monthly!))}/year
-                        </p>
-                      </>
-                    )}
-                    <p className={styles.limit}>
-                      {formatCount(tier.monthlyExampleLimit!)} examples / month
+                    <p className={styles.price}>
+                      {formatUsdAmount(tier.priceMonthlyUsd!)} USD/month
                     </p>
-                    <button
-                      type="button"
-                      className={styles.subscribe}
-                      disabled={checkoutTier !== null}
-                      onClick={() => void handleSubscribe(id)}
-                    >
-                      {checkoutTier === id ? "Redirecting…" : "Subscribe"}
-                    </button>
+                    <p className={styles.period}>billed monthly</p>
                   </>
+                )}
+
+                <p className={styles.limit}>
+                  {tier.monthlyExampleLimit === null
+                    ? "Custom example volume"
+                    : `${formatCount(tier.monthlyExampleLimit)} examples / month`}
+                </p>
+
+                {isCustom ? (
+                  <a className={styles.contactSales} href={CONTACT_SALES_MAIL}>
+                    Contact Sales
+                  </a>
+                ) : isFree ? (
+                  <Link className={styles.chooseFree} href="/">
+                    Go to dashboard
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className={isPopular ? styles.subscribePopular : styles.subscribe}
+                    disabled={checkoutTier !== null}
+                    onClick={() => void handleSubscribe(id)}
+                  >
+                    {checkoutTier === id ? "Redirecting…" : "Subscribe"}
+                  </button>
                 )}
               </article>
             );
           })}
         </div>
-
-        <p className={styles.note}>
-          Stripe test mode: create recurring monthly and yearly Prices for Starter, Growth,
-          and Scale, then set{" "}
-          <code>
-            STRIPE_PRICE_ID_STARTER_MONTHLY, STRIPE_PRICE_ID_STARTER_YEARLY,
-            STRIPE_PRICE_ID_GROWTH_MONTHLY, STRIPE_PRICE_ID_GROWTH_YEARLY,
-            STRIPE_PRICE_ID_SCALE_MONTHLY, STRIPE_PRICE_ID_SCALE_YEARLY
-          </code>{" "}
-          in <code>.env.local</code>. Yearly Prices should match 10× your monthly rate (two
-          months free). Free and Enterprise use the dashboard without Stripe checkout.
-        </p>
       </div>
     </main>
   );

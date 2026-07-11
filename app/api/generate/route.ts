@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
+import { getAuthenticatedUser } from "@/lib/auth";
+import { MONTHLY_LIMIT_ERROR } from "@/lib/subscription";
+import {
+  canGenerateExamples,
+  incrementUsage,
+  type UsageSnapshot,
+} from "@/lib/usage-db";
+
 type DataType =
   | "Fraud Transactions"
   | "Credit Profiles"
@@ -110,6 +118,11 @@ function safeParseCompliance(text: string): Record<string, unknown> {
 }
 
 export async function POST(req: Request) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
   const body = (await req.json().catch(() => null)) as null | {
     type?: unknown;
     count?: unknown;
@@ -133,6 +146,20 @@ export async function POST(req: Request) {
   const requestedCount =
     typeof body.count === "number" && Number.isFinite(body.count) ? body.count : 50;
   const count = Math.max(1, Math.min(10000, Math.floor(requestedCount)));
+
+  let usageBeforeGeneration: UsageSnapshot;
+  try {
+    const quota = await canGenerateExamples(user.id, count);
+    usageBeforeGeneration = quota.snapshot;
+
+    if (!quota.allowed) {
+      return NextResponse.json({ error: MONTHLY_LIMIT_ERROR, usage: quota.snapshot }, { status: 429 });
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Could not verify usage limits.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
@@ -181,19 +208,24 @@ export async function POST(req: Request) {
     const complianceText = extractTextContent(complianceCompletion.content);
     const compliance_report = safeParseCompliance(complianceText);
 
+    const usage = await incrementUsage(user.id, data.length);
+
     return NextResponse.json({
       type,
       count: data.length,
       generatedAt,
       data,
       compliance_report,
+      usage,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Generation request failed.";
     return NextResponse.json(
-      { error: `Failed to generate synthetic data: ${message}` },
+      {
+        error: `Failed to generate synthetic data: ${message}`,
+        usage: usageBeforeGeneration,
+      },
       { status: 500 },
     );
   }
 }
-
