@@ -4,6 +4,10 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import {
+  getPasswordResetErrorMessage,
+  getPasswordResetSuccessMessage,
+} from "@/lib/auth-messages";
 
 import styles from "../auth/auth.module.css";
 
@@ -28,16 +32,13 @@ export default function ForgotPasswordPage() {
       );
 
       if (resetError) {
-        throw resetError;
+        setError(getPasswordResetErrorMessage(resetError));
+        return;
       }
 
-      setMessage(
-        "If an account exists for that email, we sent a password reset link. Check your inbox and spam folder.",
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not send password reset email.",
-      );
+      setMessage(getPasswordResetSuccessMessage());
+    } catch {
+      setError(getPasswordResetErrorMessage(null));
     } finally {
       setIsSubmitting(false);
     }
