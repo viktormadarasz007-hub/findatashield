@@ -11,6 +11,8 @@ import {
 
 import styles from "../auth/auth.module.css";
 
+const PASSWORD_RESET_REDIRECT_URL = "https://findatashield.com/reset-password";
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,10 +27,9 @@ export default function ForgotPasswordPage() {
 
     try {
       const supabase = createClient();
-      const redirectTo = `${window.location.origin}/reset-password`;
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email,
-        { redirectTo },
+        { redirectTo: PASSWORD_RESET_REDIRECT_URL },
       );
 
       if (resetError) {
