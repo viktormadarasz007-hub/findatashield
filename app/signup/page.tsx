@@ -1,15 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
 
+import {
+  buildAuthCallbackUrl,
+  buildLoginUrl,
+  parseCheckoutIntent,
+  startPaidCheckout,
+} from "@/lib/checkout-intent";
 import { createClient } from "@/lib/supabase/client";
 
 import styles from "../auth/auth.module.css";
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const checkoutIntent = parseCheckoutIntent(searchParams);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +26,25 @@ export default function SignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [awaitingVerification, setAwaitingVerification] = useState(false);
   const [isResending, setIsResending] = useState(false);
+
+  async function completeAccountSetup() {
+    const initRes = await fetch("/api/auth/initialize", { method: "POST" });
+    if (!initRes.ok) {
+      const payload = (await initRes.json()) as { error?: string };
+      throw new Error(payload.error ?? "Could not initialize your account.");
+    }
+
+    if (checkoutIntent) {
+      const checkout = await startPaidCheckout(checkoutIntent);
+      if (!checkout.ok) {
+        throw new Error(checkout.error);
+      }
+      return;
+    }
+
+    router.push("/dashboard");
+    router.refresh();
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,7 +59,7 @@ export default function SignupPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}${buildAuthCallbackUrl(checkoutIntent)}`,
         },
       });
 
@@ -41,20 +68,15 @@ export default function SignupPage() {
       }
 
       if (data.session) {
-        const initRes = await fetch("/api/auth/initialize", { method: "POST" });
-        if (!initRes.ok) {
-          const payload = (await initRes.json()) as { error?: string };
-          throw new Error(payload.error ?? "Could not initialize your account.");
-        }
-
-        router.push("/dashboard");
-        router.refresh();
+        await completeAccountSetup();
         return;
       }
 
       setAwaitingVerification(true);
       setMessage(
-        "Account created. Check your email to confirm your address, then sign in.",
+        checkoutIntent
+          ? "Account created. Confirm your email, then we will take you to checkout."
+          : "Account created. Check your email to confirm your address, then sign in.",
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create account.");
@@ -78,7 +100,7 @@ export default function SignupPage() {
         type: "signup",
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}${buildAuthCallbackUrl(checkoutIntent)}`,
         },
       });
 
@@ -98,6 +120,70 @@ export default function SignupPage() {
   }
 
   return (
+    <>
+      <p>
+        Sign up with email and password. New accounts start on the Free plan with
+        500 examples per month.
+        {checkoutIntent
+          ? " After signup you will continue to secure checkout for your selected plan."
+          : null}
+      </p>
+
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <label className={styles.field}>
+          <span>Email</span>
+          <input
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={isSubmitting}
+          />
+        </label>
+
+        <label className={styles.field}>
+          <span>Password</span>
+          <input
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={6}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={isSubmitting}
+          />
+        </label>
+
+        {error && <p className={styles.error}>{error}</p>}
+        {message && <p className={styles.success}>{message}</p>}
+
+        <button className={styles.submit} type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Creating account..." : "Sign up"}
+        </button>
+
+        {awaitingVerification && (
+          <button
+            type="button"
+            className={styles.secondary}
+            onClick={() => void handleResendVerification()}
+            disabled={isResending || isSubmitting}
+          >
+            {isResending ? "Sending..." : "Resend verification email"}
+          </button>
+        )}
+      </form>
+
+      <p className={styles.footer}>
+        Already have an account?{" "}
+        <Link href={buildLoginUrl(checkoutIntent)}>Sign in</Link>
+      </p>
+    </>
+  );
+}
+
+export default function SignupPage() {
+  return (
     <main className={styles.page}>
       <header className={styles.topHeader}>
         <div className={styles.topHeaderInner}>
@@ -112,59 +198,10 @@ export default function SignupPage() {
 
       <section className={styles.card}>
         <h1>Create account</h1>
-        <p>
-          Sign up with email and password. New accounts start on the Free plan with
-          500 examples per month.
-        </p>
 
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <label className={styles.field}>
-            <span>Email</span>
-            <input
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              disabled={isSubmitting}
-            />
-          </label>
-
-          <label className={styles.field}>
-            <span>Password</span>
-            <input
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              disabled={isSubmitting}
-            />
-          </label>
-
-          {error && <p className={styles.error}>{error}</p>}
-          {message && <p className={styles.success}>{message}</p>}
-
-          <button className={styles.submit} type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating account..." : "Sign up"}
-          </button>
-
-          {awaitingVerification && (
-            <button
-              type="button"
-              className={styles.secondary}
-              onClick={() => void handleResendVerification()}
-              disabled={isResending || isSubmitting}
-            >
-              {isResending ? "Sending..." : "Resend verification email"}
-            </button>
-          )}
-        </form>
-
-        <p className={styles.footer}>
-          Already have an account? <Link href="/login">Sign in</Link>
-        </p>
+        <Suspense fallback={<p className={styles.footer}>Loading...</p>}>
+          <SignupForm />
+        </Suspense>
       </section>
     </main>
   );

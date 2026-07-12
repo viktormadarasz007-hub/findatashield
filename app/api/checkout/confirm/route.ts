@@ -74,6 +74,7 @@ export async function GET(request: Request) {
       tier,
       usage,
       payment_status: session.payment_status,
+      redirect: "/dashboard",
     });
   } catch (e) {
     const message =

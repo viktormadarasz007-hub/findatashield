@@ -65,6 +65,16 @@
   border-radius: 999px;
 }
 
+.checkoutError {
+  color: #9d1c3d;
+  background: #ffeef3;
+  border: 1px solid #f8c5d2;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  text-align: center;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

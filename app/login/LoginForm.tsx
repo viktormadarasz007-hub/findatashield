@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 
+import {
+  buildSignupUrl,
+  parseCheckoutIntent,
+  startPaidCheckout,
+} from "@/lib/checkout-intent";
 import { createClient } from "@/lib/supabase/client";
 
 import styles from "../auth/auth.module.css";
@@ -11,6 +16,7 @@ import styles from "../auth/auth.module.css";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const checkoutIntent = parseCheckoutIntent(searchParams);
   const nextPath = searchParams.get("next") ?? "/dashboard";
   const callbackError = searchParams.get("error");
 
@@ -37,6 +43,14 @@ function LoginForm() {
         throw signInError;
       }
 
+      if (checkoutIntent) {
+        const checkout = await startPaidCheckout(checkoutIntent);
+        if (!checkout.ok) {
+          throw new Error(checkout.error);
+        }
+        return;
+      }
+
       router.push(nextPath);
       router.refresh();
     } catch (err) {
@@ -48,6 +62,12 @@ function LoginForm() {
 
   return (
     <>
+      {checkoutIntent && (
+        <p>
+          Sign in to continue to secure checkout for your selected plan.
+        </p>
+      )}
+
       <form className={styles.form} onSubmit={handleSubmit}>
         <label className={styles.field}>
           <span>Email</span>
@@ -82,7 +102,8 @@ function LoginForm() {
       </form>
 
       <p className={styles.footer}>
-        Don&apos;t have an account? <Link href="/signup">Create one</Link>
+        Don&apos;t have an account?{" "}
+        <Link href={buildSignupUrl(checkoutIntent)}>Create one</Link>
       </p>
     </>
   );

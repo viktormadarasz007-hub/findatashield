@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { parseCheckoutIntent } from "@/lib/checkout-intent";
+
 const PUBLIC_PATHS = [
   "/",
   "/login",
@@ -66,6 +68,15 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && (pathname === "/login" || pathname === "/signup")) {
+    const checkoutIntent = parseCheckoutIntent(request.nextUrl.searchParams);
+    if (checkoutIntent) {
+      const checkoutUrl = request.nextUrl.clone();
+      checkoutUrl.pathname = "/pricing";
+      checkoutUrl.searchParams.set("checkout", checkoutIntent.tier);
+      checkoutUrl.searchParams.set("billing", checkoutIntent.billing);
+      return NextResponse.redirect(checkoutUrl);
+    }
+
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
     dashboardUrl.search = "";

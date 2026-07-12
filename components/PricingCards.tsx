@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { buildSignupUrl } from "@/lib/checkout-intent";
 import {
   type BillingPeriod,
   type PaidSelfServeTierId,
@@ -34,16 +36,37 @@ function formatCount(n: number): string {
 type PricingCardsProps = {
   variant: "landing" | "app";
   checkoutTier?: PaidSelfServeTierId | null;
+  checkoutError?: string | null;
   onSubscribe?: (tier: PaidSelfServeTierId, billing: BillingPeriod) => void;
+  onCheckoutError?: (message: string | null) => void;
 };
 
 export function PricingCards({
-  variant,
+  variant: _variant,
   checkoutTier = null,
+  checkoutError = null,
   onSubscribe,
+  onCheckoutError,
 }: PricingCardsProps) {
+  const router = useRouter();
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  const [internalError, setInternalError] = useState<string | null>(null);
   const isYearly = billingPeriod === "yearly";
+
+  const activeCheckoutTier = checkoutTier;
+  const displayError = checkoutError ?? internalError;
+
+  function handleGetStarted(tier: PaidSelfServeTierId) {
+    setInternalError(null);
+    onCheckoutError?.(null);
+
+    if (onSubscribe) {
+      onSubscribe(tier, billingPeriod);
+      return;
+    }
+
+    router.push(buildSignupUrl({ tier, billing: billingPeriod }));
+  }
 
   return (
     <div className={styles.wrapper}>
@@ -71,6 +94,8 @@ export function PricingCards({
           </button>
         </div>
       </div>
+
+      {displayError && <p className={styles.checkoutError}>{displayError}</p>}
 
       <div className={styles.grid}>
         {DISPLAY_ORDER.map((id) => {
@@ -147,32 +172,17 @@ export function PricingCards({
                   Contact Sales
                 </a>
               ) : isFree ? (
-                variant === "landing" ? (
-                  <Link className={styles.ctaOutline} href="/signup">
-                    Start free
-                  </Link>
-                ) : (
-                  <Link className={styles.ctaOutline} href="/dashboard">
-                    Go to dashboard
-                  </Link>
-                )
-              ) : variant === "landing" ? (
-                <Link
-                  className={isPopular ? styles.ctaPopular : styles.ctaPrimary}
-                  href="/signup"
-                >
-                  Get started
+                <Link className={styles.ctaOutline} href="/signup">
+                  Start free
                 </Link>
               ) : isPaidSelfServe ? (
                 <button
                   type="button"
                   className={isPopular ? styles.ctaPopular : styles.ctaPrimary}
-                  disabled={checkoutTier !== null}
-                  onClick={() =>
-                    onSubscribe?.(id as PaidSelfServeTierId, billingPeriod)
-                  }
+                  disabled={activeCheckoutTier !== null}
+                  onClick={() => handleGetStarted(id as PaidSelfServeTierId)}
                 >
-                  {checkoutTier === id ? "Redirecting…" : "Subscribe"}
+                  {activeCheckoutTier === id ? "Redirecting…" : "Get started"}
                 </button>
               ) : null}
             </article>

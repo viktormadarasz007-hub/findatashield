@@ -5,6 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { PricingCards } from "@/components/PricingCards";
+import {
+  buildSignupUrl,
+  parseCheckoutIntent,
+} from "@/lib/checkout-intent";
+import {
+  createCheckoutSession,
+  redirectToCheckout,
+} from "@/lib/stripe-client";
 import type { BillingPeriod, PaidSelfServeTierId, TierId } from "@/lib/subscription";
 
 import styles from "./pricing.module.css";
@@ -13,6 +21,7 @@ export function PricingView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const processedSessionRef = useRef<string | null>(null);
+  const processedCheckoutRef = useRef<string | null>(null);
   const [checkoutTier, setCheckoutTier] = useState<PaidSelfServeTierId | null>(
     null,
   );
@@ -21,6 +30,7 @@ export function PricingView() {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const checkoutCanceled = searchParams.get("canceled") === "1";
+  const pendingCheckout = parseCheckoutIntent(searchParams);
 
   const finalizeCheckout = useCallback(
     async (sessionId: string) => {
@@ -59,41 +69,47 @@ export function PricingView() {
     }
   }, [finalizeCheckout, searchParams]);
 
-  async function handleSubscribe(tier: PaidSelfServeTierId, billing: BillingPeriod) {
-    setError(null);
-    setBanner(null);
-    setCheckoutTier(tier);
+  const handleSubscribe = useCallback(
+    async (tier: PaidSelfServeTierId, billing: BillingPeriod) => {
+      setError(null);
+      setBanner(null);
+      setCheckoutTier(tier);
 
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier, billing }),
-      });
+      try {
+        const result = await createCheckoutSession(tier, billing);
 
-      const data = (await res.json()) as { url?: string; error?: string };
+        if (!result.ok) {
+          if (result.needsAuth) {
+            router.push(buildSignupUrl({ tier, billing }));
+            return;
+          }
+          throw new Error(result.error);
+        }
 
-      if (!res.ok) {
-        throw new Error(data.error ?? "Could not start checkout.");
+        redirectToCheckout(result.url);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Checkout failed.");
+      } finally {
+        setCheckoutTier(null);
       }
+    },
+    [router],
+  );
 
-      if (!data.url) {
-        throw new Error("No checkout URL returned.");
-      }
-
-      const link = document.createElement("a");
-      link.href = data.url;
-      link.rel = "noopener noreferrer";
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Checkout failed.");
-    } finally {
-      setCheckoutTier(null);
+  useEffect(() => {
+    if (!pendingCheckout) {
+      return;
     }
-  }
+
+    const checkoutKey = `${pendingCheckout.tier}:${pendingCheckout.billing}`;
+    if (processedCheckoutRef.current === checkoutKey) {
+      return;
+    }
+
+    processedCheckoutRef.current = checkoutKey;
+    router.replace("/pricing", { scroll: false });
+    void handleSubscribe(pendingCheckout.tier, pendingCheckout.billing);
+  }, [handleSubscribe, pendingCheckout, router]);
 
   async function handleSignOut() {
     setIsSigningOut(true);
