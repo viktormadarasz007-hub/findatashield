@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { RecoveryLinkRedirect } from "@/components/RecoveryLinkRedirect";
+import { RecoveryHashRedirectScript } from "@/components/RecoveryHashRedirectScript";
 
 import "./globals.css";
 
@@ -27,10 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>
-        <RecoveryLinkRedirect />
-        {children}
-      </body>
+      <head>
+        <RecoveryHashRedirectScript />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }

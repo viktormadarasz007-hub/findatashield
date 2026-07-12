@@ -1,17 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
-import { establishRecoverySession } from "@/lib/auth-recovery";
+import {
+  establishRecoverySession,
+  parseRecoveryParamsFromLocation,
+} from "@/lib/auth-recovery";
 import { createClient } from "@/lib/supabase/client";
 
 import styles from "../auth/auth.module.css";
 
-function ResetPasswordForm() {
+export default function ResetPasswordPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const verifiedRef = useRef(false);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,15 +24,21 @@ function ResetPasswordForm() {
   const [hasRecoverySession, setHasRecoverySession] = useState(false);
 
   useEffect(() => {
+    if (verifiedRef.current) {
+      return;
+    }
+    verifiedRef.current = true;
+
     let isMounted = true;
 
     async function verifyRecoveryLink() {
+      const recoveryParams = parseRecoveryParamsFromLocation(
+        window.location.search,
+        window.location.hash,
+      );
+
       const supabase = createClient();
-      const result = await establishRecoverySession(supabase, {
-        code: searchParams.get("code"),
-        tokenHash: searchParams.get("token_hash"),
-        type: searchParams.get("type"),
-      });
+      const result = await establishRecoverySession(supabase, recoveryParams);
 
       if (!isMounted) {
         return;
@@ -46,7 +55,10 @@ function ResetPasswordForm() {
 
       setHasRecoverySession(true);
       setIsCheckingSession(false);
-      router.replace("/reset-password", { scroll: false });
+
+      if (window.location.search || window.location.hash) {
+        window.history.replaceState(null, "", "/reset-password");
+      }
     }
 
     void verifyRecoveryLink();
@@ -54,7 +66,7 @@ function ResetPasswordForm() {
     return () => {
       isMounted = false;
     };
-  }, [router, searchParams]);
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -92,73 +104,6 @@ function ResetPasswordForm() {
   }
 
   return (
-    <>
-      {isCheckingSession ? (
-        <p className={styles.footer}>Verifying reset link...</p>
-      ) : (
-        <>
-          {error && !hasRecoverySession && (
-            <>
-              <p className={styles.error}>{error}</p>
-              <p className={styles.footer}>
-                <Link href="/forgot-password">Request a new reset link</Link>
-              </p>
-            </>
-          )}
-
-          {hasRecoverySession && (
-            <form className={styles.form} onSubmit={handleSubmit}>
-              <label className={styles.field}>
-                <span>New password</span>
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </label>
-
-              <label className={styles.field}>
-                <span>Confirm password</span>
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </label>
-
-              {error && <p className={styles.error}>{error}</p>}
-
-              <button
-                className={styles.submit}
-                type="submit"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Updating..." : "Update password"}
-              </button>
-            </form>
-          )}
-        </>
-      )}
-
-      {!isCheckingSession && hasRecoverySession && (
-        <p className={styles.footer}>
-          <Link href="/login">Back to sign in</Link>
-        </p>
-      )}
-    </>
-  );
-}
-
-export default function ResetPasswordPage() {
-  return (
     <main className={styles.page}>
       <header className={styles.topHeader}>
         <div className={styles.topHeaderInner}>
@@ -178,9 +123,66 @@ export default function ResetPasswordPage() {
           in again with the updated credentials.
         </p>
 
-        <Suspense fallback={<p className={styles.footer}>Loading...</p>}>
-          <ResetPasswordForm />
-        </Suspense>
+        {isCheckingSession ? (
+          <p className={styles.footer}>Verifying reset link...</p>
+        ) : (
+          <>
+            {error && !hasRecoverySession && (
+              <>
+                <p className={styles.error}>{error}</p>
+                <p className={styles.footer}>
+                  <Link href="/forgot-password">Request a new reset link</Link>
+                </p>
+              </>
+            )}
+
+            {hasRecoverySession && (
+              <form className={styles.form} onSubmit={handleSubmit}>
+                <label className={styles.field}>
+                  <span>New password</span>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </label>
+
+                <label className={styles.field}>
+                  <span>Confirm password</span>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </label>
+
+                {error && <p className={styles.error}>{error}</p>}
+
+                <button
+                  className={styles.submit}
+                  type="submit"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Updating..." : "Update password"}
+                </button>
+              </form>
+            )}
+          </>
+        )}
+
+        {!isCheckingSession && hasRecoverySession && (
+          <p className={styles.footer}>
+            <Link href="/login">Back to sign in</Link>
+          </p>
+        )}
       </section>
     </main>
   );

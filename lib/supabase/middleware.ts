@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { hasRecoveryQueryParams } from "@/lib/auth-recovery";
 import { parseCheckoutIntent } from "@/lib/checkout-intent";
 
 const PUBLIC_PATHS = [
@@ -18,6 +19,18 @@ const PUBLIC_PATHS = [
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
+function isAuthRoute(pathname: string): boolean {
+  return pathname === "/auth/callback" || pathname.startsWith("/auth/");
+}
+
+function shouldBypassAuthRedirects(pathname: string, searchParams: URLSearchParams): boolean {
+  return (
+    isAuthRoute(pathname) ||
+    pathname === "/reset-password" ||
+    hasRecoveryQueryParams(searchParams)
   );
 }
 
@@ -49,9 +62,24 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
 
-  if (user && pathname === "/") {
+  if (
+    hasRecoveryQueryParams(searchParams) &&
+    pathname !== "/reset-password"
+  ) {
+    const resetUrl = request.nextUrl.clone();
+    resetUrl.pathname = "/reset-password";
+    return NextResponse.redirect(resetUrl);
+  }
+
+  const bypassAuthRedirects = shouldBypassAuthRedirects(pathname, searchParams);
+
+  if (isAuthRoute(pathname)) {
+    return supabaseResponse;
+  }
+
+  if (user && pathname === "/" && !bypassAuthRedirects) {
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
     dashboardUrl.search = "";
@@ -69,8 +97,12 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (user && (pathname === "/login" || pathname === "/signup")) {
-    const checkoutIntent = parseCheckoutIntent(request.nextUrl.searchParams);
+  if (
+    user &&
+    (pathname === "/login" || pathname === "/signup") &&
+    !bypassAuthRedirects
+  ) {
+    const checkoutIntent = parseCheckoutIntent(searchParams);
     if (checkoutIntent) {
       const checkoutUrl = request.nextUrl.clone();
       checkoutUrl.pathname = "/pricing";
