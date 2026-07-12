@@ -19,6 +19,7 @@ function LoginForm() {
   const checkoutIntent = parseCheckoutIntent(searchParams);
   const nextPath = searchParams.get("next") ?? "/dashboard";
   const callbackError = searchParams.get("error");
+  const resetSuccess = searchParams.get("reset") === "success";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,6 +69,12 @@ function LoginForm() {
         </p>
       )}
 
+      {resetSuccess && (
+        <p className={styles.success}>
+          Your password has been updated. Sign in with your new password.
+        </p>
+      )}
+
       <form className={styles.form} onSubmit={handleSubmit}>
         <label className={styles.field}>
           <span>Email</span>
@@ -99,6 +106,10 @@ function LoginForm() {
         <button className={styles.submit} type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
+
+        <p className={styles.forgotLink}>
+          <Link href="/forgot-password">Forgot your password?</Link>
+        </p>
       </form>
 
       <p className={styles.footer}>

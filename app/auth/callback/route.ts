@@ -19,7 +19,7 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (user) {
+      if (user && next !== "/reset-password") {
         try {
           await initializeFreeUsage(user.id);
         } catch {
